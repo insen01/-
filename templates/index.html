@@ -157,6 +157,7 @@ select { appearance: none; }
         <details class="char-book-preview"><summary>世界书 (0 条)</summary><div id="charBookSummary"></div></details>
       </div>
       <button class="btn btn-download" id="downloadBtn" style="display:none;" onclick="downloadCard()">⬇ 下载角色卡 PNG</button>
+      <div id="imageError" style="display:none;margin-top:8px;padding:8px;background:#3a1a1a;border-radius:6px;color:#f87171;font-size:0.8rem;white-space:pre-wrap;"></div>
     </div>
   </div>
 </div>
@@ -278,11 +279,20 @@ function pollJob() {
 
     if (job.card_preview) updatePreview(job.card_preview);
 
+    // Show image generation error if present
+    const imgErr = document.getElementById('imageError');
+    if (job.image_error) {
+      imgErr.style.display = '';
+      imgErr.textContent = '⚠ 立绘警告: ' + job.image_error;
+    } else {
+      imgErr.style.display = 'none';
+    }
+
     if (job.stage === 'done') {
       document.getElementById('generateBtn').disabled = false;
       document.getElementById('generateBtn').textContent = '✨ 重新生成';
       document.getElementById('downloadBtn').style.display = '';
-      document.getElementById('stageText').textContent = '生成完成！';
+      document.getElementById('stageText').textContent = job.image_error ? '生成完成 (立绘使用了占位图)' : '生成完成！';
       clearTimeout(pollTimer);
     } else if (job.stage === 'error') {
       document.getElementById('generateBtn').disabled = false;

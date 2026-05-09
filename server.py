@@ -124,16 +124,20 @@ def _run_generation(job_id, description, api_base, api_key, llm_model, comfyui_u
 
         # Stage 3: Generate portrait
         _update_job(job_id, "image", 50, "正在生成角色立绘...")
+        image_error = None
 
         try:
             portrait_path = _cloud_generate(image_prompt, image_model, config.OUTPUT_DIR, api_base=api_base, api_key=api_key)
         except Exception as e:
-            # Fallback: use placeholder if image generation fails
+            image_error = str(e)
             os.makedirs(config.OUTPUT_DIR, exist_ok=True)
             portrait_path = os.path.join(config.OUTPUT_DIR, f"placeholder_{job_id}.png")
             build_placeholder_card(portrait_path)
 
-        _update_job(job_id, "image", 80, "立绘生成完成")
+        if image_error:
+            _update_job(job_id, "image", 80, f"立绘生成失败，已使用占位图", image_error=image_error)
+        else:
+            _update_job(job_id, "image", 80, "立绘生成完成")
 
         # Stage 4: Embed into PNG
         _update_job(job_id, "embedding", 90, "正在嵌入角色卡数据到 PNG...")
@@ -154,10 +158,12 @@ def _run_generation(job_id, description, api_base, api_key, llm_model, comfyui_u
         _update_job(job_id, "error", 0, f"生成失败: {str(e)}")
 
 
-def _update_job(job_id, stage, progress, message, output_path=None, char_name=None, card=None):
+def _update_job(job_id, stage, progress, message, output_path=None, char_name=None, card=None, image_error=None):
     with _jobs_lock:
         job = _jobs.get(job_id, {})
         job.update({"stage": stage, "progress": progress, "message": message})
+        if image_error:
+            job["image_error"] = image_error
         if output_path:
             job["output_path"] = output_path
         if char_name:
