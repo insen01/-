@@ -1,9 +1,9 @@
 """charcard configuration — all defaults in one place."""
 import os
 
-# ── SiliconFlow ──────────────────────────────────────────
-SILICONFLOW_API_KEY = os.environ.get("SILICONFLOW_API_KEY", "")
-SILICONFLOW_BASE = "https://api.siliconflow.cn/v1"
+# ── API (generic OpenAI-compatible provider) ──────────────
+DEFAULT_API_BASE = "https://api.siliconflow.cn/v1"
+DEFAULT_API_KEY = os.environ.get("LLM_API_KEY", "") or os.environ.get("SILICONFLOW_API_KEY", "")
 
 # ── LLM ──────────────────────────────────────────────────
 DEFAULT_LLM_MODEL = "deepseek-ai/DeepSeek-V3"
@@ -16,7 +16,7 @@ DEFAULT_COMFYUI_URL = "http://127.0.0.1:8188"
 DEFAULT_WORKFLOW = "anime_char.json"
 COMFYUI_TIMEOUT = 300  # 5 min before fallback
 
-# ── Image generation (fallback) ──────────────────────────
+# ── Image generation (cloud fallback) ────────────────────
 DEFAULT_IMAGE_MODEL = "stabilityai/stable-diffusion-xl-base-1.0"
 
 # ── Output ───────────────────────────────────────────────

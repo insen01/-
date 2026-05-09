@@ -1,4 +1,4 @@
-"""SiliconFlow Chat API wrapper — generates structured character card JSON."""
+"""OpenAI-compatible Chat API wrapper — generates structured character card JSON."""
 from __future__ import annotations
 
 import json
@@ -60,31 +60,38 @@ Output ONLY valid JSON following the schema below. No markdown, no code fences, 
 Start your response with '{' and end with '}'."""
 
 
-def generate_card(description: str, model: Optional[str] = None) -> dict:
+def generate_card(
+    description: str,
+    model: Optional[str] = None,
+    api_base: Optional[str] = None,
+    api_key: Optional[str] = None,
+) -> dict:
     """Generate a complete character card from a text description.
 
     Args:
         description: Character background and description text.
-        model: SiliconFlow model ID. Defaults to config.DEFAULT_LLM_MODEL.
+        model: Model ID. Defaults to config.DEFAULT_LLM_MODEL.
+        api_base: API base URL (OpenAI-compatible). Defaults to config.DEFAULT_API_BASE.
+        api_key: API key. Defaults to config.DEFAULT_API_KEY.
 
     Returns:
         Complete character card dict following SillyTavern v2 spec.
     """
-    if not config.SILICONFLOW_API_KEY:
-        raise RuntimeError("SILICONFLOW_API_KEY not set")
+    api_key = api_key or config.DEFAULT_API_KEY
+    if not api_key:
+        raise RuntimeError("API key not set — configure in advanced settings or set LLM_API_KEY env var")
 
     model = model or config.DEFAULT_LLM_MODEL
+    api_base = api_base or config.DEFAULT_API_BASE
     user_prompt = f"Create a character card for: {description}"
 
-    # First attempt
     try:
-        return _call_api(user_prompt, model, SYSTEM_PROMPT)
+        return _call_api(user_prompt, model, SYSTEM_PROMPT, api_base, api_key)
     except (ValueError, json.JSONDecodeError):
-        # Retry with stronger constraints
-        return _call_api(user_prompt, model, RETRY_SYSTEM_PROMPT)
+        return _call_api(user_prompt, model, RETRY_SYSTEM_PROMPT, api_base, api_key)
 
 
-def _call_api(user_prompt: str, model: str, system_prompt: str) -> dict:
+def _call_api(user_prompt: str, model: str, system_prompt: str, api_base: str, api_key: str) -> dict:
     """Single API call with JSON parsing."""
     payload = {
         "model": model,
@@ -96,10 +103,10 @@ def _call_api(user_prompt: str, model: str, system_prompt: str) -> dict:
         "max_tokens": config.LLM_MAX_TOKENS,
     }
 
-    url = f"{config.SILICONFLOW_BASE}/chat/completions"
+    url = f"{api_base.rstrip('/')}/chat/completions"
     data = json.dumps(payload).encode("utf-8")
     req = urllib.request.Request(url, data=data, method="POST")
-    req.add_header("Authorization", f"Bearer {config.SILICONFLOW_API_KEY}")
+    req.add_header("Authorization", f"Bearer {api_key}")
     req.add_header("Content-Type", "application/json")
 
     try:
@@ -111,7 +118,6 @@ def _call_api(user_prompt: str, model: str, system_prompt: str) -> dict:
     except urllib.error.URLError as e:
         raise RuntimeError(f"LLM API network error: {e.reason}")
 
-    # Parse API response JSON
     try:
         body = json.loads(raw)
     except json.JSONDecodeError:
@@ -120,11 +126,9 @@ def _call_api(user_prompt: str, model: str, system_prompt: str) -> dict:
     content = body.get("choices", [{}])[0].get("message", {}).get("content", "")
     content = content.strip()
 
-    # Guard against empty content
     if not content:
         raise ValueError("LLM returned empty content")
 
-    # Strip markdown fences if present
     if content.startswith("```"):
         content = content.split("\n", 1)[-1]
         if content.endswith("```"):
@@ -136,7 +140,6 @@ def _call_api(user_prompt: str, model: str, system_prompt: str) -> dict:
     except json.JSONDecodeError as e:
         raise ValueError(f"LLM output not valid JSON: {e}")
 
-    # Validate required fields
     if not result.get("name") or not result.get("first_mes"):
         raise ValueError("LLM output missing required fields: name and first_mes must be non-empty")
 

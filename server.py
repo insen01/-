@@ -34,6 +34,9 @@ def index():
 def get_config():
     """Return default config values for the frontend."""
     return jsonify({
+        "api_base": config.DEFAULT_API_BASE,
+        "api_key": config.DEFAULT_API_KEY[:8] + "***" if config.DEFAULT_API_KEY else "",
+        "has_api_key": bool(config.DEFAULT_API_KEY),
         "llm_model": config.DEFAULT_LLM_MODEL,
         "comfyui_url": config.DEFAULT_COMFYUI_URL,
         "workflow": config.DEFAULT_WORKFLOW,
@@ -51,6 +54,8 @@ def api_generate():
         return jsonify({"error": "description is required"}), 400
 
     job_id = str(uuid.uuid4())[:8]
+    api_base = data.get("api_base") or config.DEFAULT_API_BASE
+    api_key = data.get("api_key") or config.DEFAULT_API_KEY
     llm_model = data.get("llm_model") or config.DEFAULT_LLM_MODEL
     comfyui_url = data.get("comfyui_url") or config.DEFAULT_COMFYUI_URL
     workflow = data.get("workflow") or config.DEFAULT_WORKFLOW
@@ -66,7 +71,7 @@ def api_generate():
 
     thread = threading.Thread(
         target=_run_generation,
-        args=(job_id, description, llm_model, comfyui_url, workflow, switches, skip_comfyui, image_model),
+        args=(job_id, description, api_base, api_key, llm_model, comfyui_url, workflow, switches, skip_comfyui, image_model),
         daemon=True,
     )
     thread.start()
@@ -105,11 +110,11 @@ def api_workflows():
 
 # ── Generation pipeline ───────────────────────────────────
 
-def _run_generation(job_id, description, llm_model, comfyui_url, workflow, switches, skip_comfyui, image_model):
+def _run_generation(job_id, description, api_base, api_key, llm_model, comfyui_url, workflow, switches, skip_comfyui, image_model):
     try:
         # Stage 1: LLM text generation
         _update_job(job_id, "llm", 10, "LLM 正在生成角色设定...")
-        card_dict = generate_card(description, llm_model)
+        card_dict = generate_card(description, llm_model, api_base=api_base, api_key=api_key)
 
         # Stage 2: Build card
         _update_job(job_id, "building", 30, "正在组装角色卡 JSON...")
@@ -121,7 +126,7 @@ def _run_generation(job_id, description, llm_model, comfyui_url, workflow, switc
         _update_job(job_id, "image", 50, "正在生成角色立绘...")
 
         try:
-            portrait_path = _cloud_generate(image_prompt, image_model, config.OUTPUT_DIR)
+            portrait_path = _cloud_generate(image_prompt, image_model, config.OUTPUT_DIR, api_base=api_base, api_key=api_key)
         except Exception as e:
             # Fallback: use placeholder if image generation fails
             os.makedirs(config.OUTPUT_DIR, exist_ok=True)

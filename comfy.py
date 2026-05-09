@@ -1,4 +1,4 @@
-"""ComfyUI portrait generation + SiliconFlow image API fallback."""
+"""ComfyUI portrait generation + cloud image API fallback."""
 import json
 import os
 import time
@@ -15,7 +15,6 @@ def list_workflows(comfyui_url: Optional[str] = None) -> list[str]:
     """List available ComfyUI workflow files from the user library."""
     import glob
     comfyui_url = comfyui_url or config.DEFAULT_COMFYUI_URL
-    # Try common workflow storage paths
     wf_files = glob.glob("/storage/emulated/0/ComfyUI/user/default/workflows/*.json")
     wf_files += glob.glob(os.path.expanduser("~/ComfyUI/user/default/workflows/*.json"))
     names = sorted(set(os.path.basename(f) for f in wf_files))
@@ -23,12 +22,8 @@ def list_workflows(comfyui_url: Optional[str] = None) -> list[str]:
 
 
 def analyze_switches(workflow_name: str, comfyui_url: Optional[str] = None) -> list[dict]:
-    """Analyze a workflow for toggle-able nodes (bypass/mute switches).
-
-    Returns list of {id, title, type, enabled, class_type}.
-    """
+    """Analyze a workflow for toggle-able nodes (bypass/mute switches)."""
     comfyui_url = comfyui_url or config.DEFAULT_COMFYUI_URL
-    # Try to load the workflow file and find bypass-able nodes
     import glob
     search_paths = [
         f"/storage/emulated/0/ComfyUI/user/default/workflows/{workflow_name}",
@@ -43,7 +38,6 @@ def analyze_switches(workflow_name: str, comfyui_url: Optional[str] = None) -> l
                 nid = str(node.get("id", ""))
                 title = node.get("title", node.get("type", ""))
                 ntype = node.get("type", "")
-                # Nodes with mode or bypassable widgets
                 mode = node.get("mode", 0)
                 switches.append({
                     "id": nid,
@@ -65,27 +59,33 @@ def generate_portrait(
     comfyui_url: Optional[str] = None,
     fallback_model: Optional[str] = None,
     output_dir: Optional[str] = None,
+    api_base: Optional[str] = None,
+    api_key: Optional[str] = None,
 ) -> str:
-    """Generate a character portrait, trying ComfyUI first then cloud fallback.
-
-    Returns: Absolute path to the generated PNG.
-    """
+    """Generate a character portrait, trying ComfyUI first then cloud fallback."""
     comfyui_url = comfyui_url or config.DEFAULT_COMFYUI_URL
     workflow = workflow or config.DEFAULT_WORKFLOW
     switches = switches or {}
     fallback_model = fallback_model or config.DEFAULT_IMAGE_MODEL
     output_dir = output_dir or config.OUTPUT_DIR
 
-    # Always use cloud fallback for now — ComfyUI MCP integration is at Flask layer
-    return _cloud_generate(prompt, fallback_model, output_dir)
+    return _cloud_generate(prompt, fallback_model, output_dir, api_base=api_base, api_key=api_key)
 
 
-def _cloud_generate(prompt: str, model: str, output_dir: str) -> str:
-    """Generate portrait via SiliconFlow image API."""
-    if not config.SILICONFLOW_API_KEY:
-        raise RuntimeError("SILICONFLOW_API_KEY not set")
+def _cloud_generate(
+    prompt: str,
+    model: str,
+    output_dir: str,
+    api_base: Optional[str] = None,
+    api_key: Optional[str] = None,
+) -> str:
+    """Generate portrait via an OpenAI-compatible image API."""
+    api_key = api_key or config.DEFAULT_API_KEY
+    if not api_key:
+        raise RuntimeError("API key not set — configure in advanced settings or set LLM_API_KEY env var")
 
-    url = f"{config.SILICONFLOW_BASE}/images/generations"
+    api_base = api_base or config.DEFAULT_API_BASE
+    url = f"{api_base.rstrip('/')}/images/generations"
     payload = {
         "model": model,
         "prompt": prompt,
@@ -95,7 +95,7 @@ def _cloud_generate(prompt: str, model: str, output_dir: str) -> str:
     }
     data = json.dumps(payload).encode("utf-8")
     req = urllib.request.Request(url, data=data, method="POST")
-    req.add_header("Authorization", f"Bearer {config.SILICONFLOW_API_KEY}")
+    req.add_header("Authorization", f"Bearer {api_key}")
     req.add_header("Content-Type", "application/json")
 
     try:
