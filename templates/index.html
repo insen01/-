@@ -124,20 +124,34 @@ select { appearance: none; }
       <div class="advanced" id="advancedPanel">
         <label>LLM API 地址</label>
         <input type="text" id="apiBase" placeholder="https://api.siliconflow.cn/v1">
-        <label>图片 API 地址（可与 LLM 不同）</label>
-        <input type="text" id="imageApiBase" placeholder="https://api.siliconflow.cn/v1">
-        <label>API Key</label>
+        <label>LLM API Key</label>
         <input type="password" id="apiKey" placeholder="sk-... 或通过环境变量 LLM_API_KEY 设置">
         <label>LLM 模型</label>
         <input type="text" id="llmModel" placeholder="deepseek-ai/DeepSeek-V3">
-        <label>ComfyUI 地址</label>
-        <input type="text" id="comfyuiUrl" placeholder="http://127.0.0.1:8188">
-        <label>工作流文件</label>
-        <select id="workflowSelect"></select>
-        <label>图片模型（云端兜底）</label>
-        <input type="text" id="imageModel" placeholder="Qwen/Qwen-Image">
         <label>额外要求（可选）</label>
         <textarea id="extraInstructions" rows="2" placeholder="对 LLM 生成角色卡的额外指令，例如：&#10;角色应该是傲娇属性、开场白需包含打斗场景、世界书至少5条..."></textarea>
+        <hr style="border-color:#2a2a35;margin:12px 0;">
+        <label style="color:#ccc;font-weight:600;">🖼 立绘生成方式</label>
+        <select id="generationMode" onchange="toggleImageMode()" style="margin-top:4px;">
+          <option value="cloud">☁ 云端 API 生成</option>
+          <option value="comfyui">🖥 本地 ComfyUI 生成</option>
+        </select>
+        <div id="cloudImageSettings">
+          <label>图片 API 地址</label>
+          <input type="text" id="imageApiBase" placeholder="https://api.siliconflow.cn/v1">
+          <label>图片 API Key</label>
+          <input type="password" id="imageApiKey" placeholder="sk-... 或通过环境变量 IMAGE_API_KEY 设置">
+          <label>图片模型</label>
+          <input type="text" id="imageModel" placeholder="Qwen/Qwen-Image">
+        </div>
+        <div id="comfyuiImageSettings" style="display:none;">
+          <label>ComfyUI 地址</label>
+          <input type="text" id="comfyuiUrl" placeholder="http://127.0.0.1:8188">
+          <label>Checkpoint 模型</label>
+          <input type="text" id="comfyuiCheckpoint" placeholder="IL-novaAnimeXL_ilV180.safetensors">
+          <label>工作流文件（可选）</label>
+          <select id="workflowSelect"></select>
+        </div>
         <div id="switchesPanel" style="margin-top:8px;"></div>
       </div>
 
@@ -196,18 +210,30 @@ document.getElementById('fileInput').addEventListener('change', function() {
 // 加载默认配置
 fetch('/api/config').then(r => r.json()).then(cfg => {
   document.getElementById('apiBase').value = cfg.api_base || '';
+  document.getElementById('generationMode').value = cfg.generation_mode || 'cloud';
+  document.getElementById('comfyuiUrl').value = cfg.comfyui_url || '';
+  document.getElementById('comfyuiCheckpoint').value = cfg.comfyui_checkpoint || '';
   document.getElementById('imageApiBase').value = cfg.image_api_base || '';
+  document.getElementById('imageModel').value = cfg.image_model || '';
   if (cfg.has_api_key) {
     document.getElementById('apiKey').placeholder = '已从环境变量加载 (已隐藏)';
   }
+  if (cfg.has_image_api_key) {
+    document.getElementById('imageApiKey').placeholder = '已从环境变量加载 (已隐藏)';
+  }
   document.getElementById('llmModel').value = cfg.llm_model || '';
-  document.getElementById('comfyuiUrl').value = cfg.comfyui_url || '';
-  document.getElementById('imageModel').value = cfg.image_model || '';
+  toggleImageMode();
   loadWorkflows();
 });
 
 function toggleAdvanced() {
   document.getElementById('advancedPanel').classList.toggle('open');
+}
+
+function toggleImageMode() {
+  const mode = document.getElementById('generationMode').value;
+  document.getElementById('cloudImageSettings').style.display = mode === 'cloud' ? '' : 'none';
+  document.getElementById('comfyuiImageSettings').style.display = mode === 'comfyui' ? '' : 'none';
 }
 
 function loadWorkflows() {
@@ -253,11 +279,13 @@ function startGeneration() {
   const payload = {
     description: description,
     api_base: document.getElementById('apiBase').value || null,
-    image_api_base: document.getElementById('imageApiBase').value || null,
     api_key: document.getElementById('apiKey').value || null,
     llm_model: document.getElementById('llmModel').value || null,
+    generation_mode: document.getElementById('generationMode').value || 'cloud',
     comfyui_url: document.getElementById('comfyuiUrl').value || null,
-    workflow: document.getElementById('workflowSelect').value || null,
+    comfyui_checkpoint: document.getElementById('comfyuiCheckpoint').value || null,
+    image_api_base: document.getElementById('imageApiBase').value || null,
+    image_api_key: document.getElementById('imageApiKey').value || null,
     image_model: document.getElementById('imageModel').value || null,
     extra_instructions: document.getElementById('extraInstructions').value || null,
     switches: {},
@@ -335,8 +363,12 @@ function retryImage() {
   btn.disabled = true; btn.textContent = '提交中...';
 
   const payload = {
+    generation_mode: document.getElementById('generationMode').value || 'cloud',
+    comfyui_url: document.getElementById('comfyuiUrl').value || null,
+    comfyui_checkpoint: document.getElementById('comfyuiCheckpoint').value || null,
     image_model: document.getElementById('imageModel').value || null,
     image_api_base: document.getElementById('imageApiBase').value || null,
+    image_api_key: document.getElementById('imageApiKey').value || null,
     api_base: document.getElementById('apiBase').value || null,
     api_key: document.getElementById('apiKey').value || null
   };

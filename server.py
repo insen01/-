@@ -40,7 +40,12 @@ def get_config():
         "llm_model": config.DEFAULT_LLM_MODEL,
         "comfyui_url": config.DEFAULT_COMFYUI_URL,
         "workflow": config.DEFAULT_WORKFLOW,
+        "generation_mode": config.DEFAULT_GENERATION_MODE,
+        "comfyui_url": config.DEFAULT_COMFYUI_URL,
+        "comfyui_checkpoint": config.COMFYUI_CHECKPOINT,
         "image_api_base": config.DEFAULT_IMAGE_API_BASE,
+        "image_api_key": config.DEFAULT_IMAGE_API_KEY[:8] + "***" if config.DEFAULT_IMAGE_API_KEY else "",
+        "has_image_api_key": bool(config.DEFAULT_IMAGE_API_KEY),
         "image_model": config.DEFAULT_IMAGE_MODEL,
         "output_dir": config.OUTPUT_DIR,
     })
@@ -70,21 +75,24 @@ def api_regenerate_image(job_id):
 
     data = request.get_json(force=True) or {}
     image_model = data.get("image_model") or job.get("_image_model") or config.DEFAULT_IMAGE_MODEL
+    generation_mode = data.get("generation_mode") or job.get("_generation_mode") or config.DEFAULT_GENERATION_MODE
+    comfyui_url = data.get("comfyui_url") or job.get("_comfyui_url") or config.DEFAULT_COMFYUI_URL
+    comfyui_checkpoint = data.get("comfyui_checkpoint") or job.get("_comfyui_checkpoint") or config.COMFYUI_CHECKPOINT
     image_api_base = data.get("image_api_base") or job.get("_image_api_base") or config.DEFAULT_IMAGE_API_BASE
-    api_base = data.get("api_base") or job.get("_api_base") or config.DEFAULT_API_BASE
-    api_key = data.get("api_key") or job.get("_api_key") or config.DEFAULT_API_KEY
+    image_api_key = data.get("image_api_key") or job.get("_image_api_key") or config.DEFAULT_IMAGE_API_KEY
 
     with _jobs_lock:
         job["status"] = "queued"
         job["stage"] = "image"
         job["progress"] = 30
-        job["message"] = "正在重新生成立绘..."
+        job["message"] = f"正在重新生成立绘 ({generation_mode})..."
         job["image_error"] = None
         _jobs[job_id] = job
 
     thread = threading.Thread(
         target=_run_image_only,
-        args=(job_id, api_base, image_api_base, api_key, image_model),
+        args=(job_id, generation_mode, comfyui_url, comfyui_checkpoint,
+              image_api_base, image_api_key, image_model),
         daemon=True,
     )
     thread.start()
@@ -126,11 +134,13 @@ def _start_job(data: dict, description: str) -> str:
     """Create a new job and launch the full generation thread."""
     job_id = str(uuid.uuid4())[:8]
     api_base = data.get("api_base") or config.DEFAULT_API_BASE
-    image_api_base = data.get("image_api_base") or config.DEFAULT_IMAGE_API_BASE
     api_key = data.get("api_key") or config.DEFAULT_API_KEY
     llm_model = data.get("llm_model") or config.DEFAULT_LLM_MODEL
+    generation_mode = data.get("generation_mode") or config.DEFAULT_GENERATION_MODE
     comfyui_url = data.get("comfyui_url") or config.DEFAULT_COMFYUI_URL
-    workflow = data.get("workflow") or config.DEFAULT_WORKFLOW
+    comfyui_checkpoint = data.get("comfyui_checkpoint") or config.COMFYUI_CHECKPOINT
+    image_api_base = data.get("image_api_base") or config.DEFAULT_IMAGE_API_BASE
+    image_api_key = data.get("image_api_key") or config.DEFAULT_IMAGE_API_KEY
     image_model = data.get("image_model") or config.DEFAULT_IMAGE_MODEL
     extra_instructions = (data.get("extra_instructions") or "").strip()
 
@@ -138,13 +148,18 @@ def _start_job(data: dict, description: str) -> str:
         _jobs[job_id] = {
             "status": "queued", "stage": "starting", "progress": 0,
             "message": "正在准备生成...", "output_path": None,
-            "_api_base": api_base, "_image_api_base": image_api_base,
-            "_api_key": api_key, "_image_model": image_model,
+            "_api_base": api_base, "_api_key": api_key,
+            "_generation_mode": generation_mode,
+            "_comfyui_url": comfyui_url, "_comfyui_checkpoint": comfyui_checkpoint,
+            "_image_api_base": image_api_base, "_image_api_key": image_api_key,
+            "_image_model": image_model,
         }
 
     thread = threading.Thread(
         target=_run_generation,
-        args=(job_id, description, api_base, image_api_base, api_key, llm_model, image_model, extra_instructions),
+        args=(job_id, description, api_base, api_key, llm_model,
+              generation_mode, comfyui_url, comfyui_checkpoint,
+              image_api_base, image_api_key, image_model, extra_instructions),
         daemon=True,
     )
     thread.start()
@@ -153,7 +168,9 @@ def _start_job(data: dict, description: str) -> str:
 
 # ── Generation pipeline ───────────────────────────────────
 
-def _run_generation(job_id, description, api_base, image_api_base, api_key, llm_model, image_model, extra_instructions):
+def _run_generation(job_id, description, api_base, api_key, llm_model,
+                    generation_mode, comfyui_url, comfyui_checkpoint,
+                    image_api_base, image_api_key, image_model, extra_instructions):
     try:
         # Stage 1: LLM text generation
         _update_job(job_id, "llm", 10, "LLM 正在生成角色设定...")
@@ -174,7 +191,9 @@ def _run_generation(job_id, description, api_base, image_api_base, api_key, llm_
         char_name = card["data"].get("name", "character")
 
         # Stage 3: Generate portrait
-        _run_image_stage(job_id, image_prompt, image_model, api_base, image_api_base, api_key)
+        _run_image_stage(job_id, image_prompt, generation_mode,
+                         comfyui_url, comfyui_checkpoint,
+                         image_api_base, image_api_key, image_model)
 
         # Stage 4: Embed into PNG
         _update_job(job_id, "embedding", 90, "正在嵌入角色卡数据到 PNG...")
@@ -190,7 +209,8 @@ def _run_generation(job_id, description, api_base, image_api_base, api_key, llm_
         _update_job(job_id, "error", 0, f"生成失败: {str(e)}")
 
 
-def _run_image_only(job_id, api_base, image_api_base, api_key, image_model):
+def _run_image_only(job_id, generation_mode, comfyui_url, comfyui_checkpoint,
+                    image_api_base, image_api_key, image_model):
     """Re-run only the image generation stage for an existing job."""
     try:
         with _jobs_lock:
@@ -203,7 +223,9 @@ def _run_image_only(job_id, api_base, image_api_base, api_key, image_model):
         return
 
     try:
-        _run_image_stage(job_id, image_prompt, image_model, api_base, image_api_base, api_key)
+        _run_image_stage(job_id, image_prompt, generation_mode,
+                         comfyui_url, comfyui_checkpoint,
+                         image_api_base, image_api_key, image_model)
 
         _update_job(job_id, "embedding", 90, "正在嵌入角色卡数据到 PNG...")
         os.makedirs(config.OUTPUT_DIR, exist_ok=True)
@@ -216,15 +238,23 @@ def _run_image_only(job_id, api_base, image_api_base, api_key, image_model):
         _update_job(job_id, "error", 0, f"生成失败: {str(e)}")
 
 
-def _run_image_stage(job_id, image_prompt, image_model, api_base, image_api_base, api_key):
+def _run_image_stage(job_id, image_prompt, generation_mode,
+                     comfyui_url, comfyui_checkpoint,
+                     image_api_base, image_api_key, image_model):
     """Run the image generation portion, with fallback to placeholder."""
-    _update_job(job_id, "image", 50, "正在生成角色立绘...")
+    _update_job(job_id, "image", 50, f"正在生成角色立绘 ({generation_mode})...")
     image_error = None
 
     try:
-        portrait_path = _cloud_generate(
-            image_prompt, image_model, config.OUTPUT_DIR,
-            api_base=api_base, image_api_base=image_api_base, api_key=api_key,
+        portrait_path = generate_portrait(
+            image_prompt,
+            mode=generation_mode,
+            comfyui_url=comfyui_url,
+            checkpoint=comfyui_checkpoint,
+            cloud_model=image_model,
+            image_api_base=image_api_base,
+            image_api_key=image_api_key,
+            output_dir=config.OUTPUT_DIR,
         )
     except Exception as e:
         image_error = str(e)
