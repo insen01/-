@@ -122,8 +122,10 @@ select { appearance: none; }
 
       <span class="advanced-toggle" onclick="toggleAdvanced()">⚙ 高级设置 ▾</span>
       <div class="advanced" id="advancedPanel">
-        <label>API 地址 (OpenAI 兼容)</label>
+        <label>LLM API 地址</label>
         <input type="text" id="apiBase" placeholder="https://api.siliconflow.cn/v1">
+        <label>图片 API 地址（可与 LLM 不同）</label>
+        <input type="text" id="imageApiBase" placeholder="https://api.siliconflow.cn/v1">
         <label>API Key</label>
         <input type="password" id="apiKey" placeholder="sk-... 或通过环境变量 LLM_API_KEY 设置">
         <label>LLM 模型</label>
@@ -194,6 +196,7 @@ document.getElementById('fileInput').addEventListener('change', function() {
 // 加载默认配置
 fetch('/api/config').then(r => r.json()).then(cfg => {
   document.getElementById('apiBase').value = cfg.api_base || '';
+  document.getElementById('imageApiBase').value = cfg.image_api_base || '';
   if (cfg.has_api_key) {
     document.getElementById('apiKey').placeholder = '已从环境变量加载 (已隐藏)';
   }
@@ -250,6 +253,7 @@ function startGeneration() {
   const payload = {
     description: description,
     api_base: document.getElementById('apiBase').value || null,
+    image_api_base: document.getElementById('imageApiBase').value || null,
     api_key: document.getElementById('apiKey').value || null,
     llm_model: document.getElementById('llmModel').value || null,
     comfyui_url: document.getElementById('comfyuiUrl').value || null,
@@ -332,6 +336,7 @@ function retryImage() {
 
   const payload = {
     image_model: document.getElementById('imageModel').value || null,
+    image_api_base: document.getElementById('imageApiBase').value || null,
     api_base: document.getElementById('apiBase').value || null,
     api_key: document.getElementById('apiKey').value || null
   };

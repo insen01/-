@@ -17,6 +17,7 @@ DEFAULT_WORKFLOW = "anime_char.json"
 COMFYUI_TIMEOUT = 300  # 5 min before fallback
 
 # ── Image generation (cloud fallback) ────────────────────
+DEFAULT_IMAGE_API_BASE = "https://api.siliconflow.cn/v1"
 DEFAULT_IMAGE_MODEL = "Qwen/Qwen-Image"
 
 # ── Output ───────────────────────────────────────────────

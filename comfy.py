@@ -90,6 +90,7 @@ def generate_portrait(
     fallback_model: Optional[str] = None,
     output_dir: Optional[str] = None,
     api_base: Optional[str] = None,
+    image_api_base: Optional[str] = None,
     api_key: Optional[str] = None,
 ) -> str:
     """Generate a character portrait, trying ComfyUI first then cloud fallback."""
@@ -99,7 +100,10 @@ def generate_portrait(
     fallback_model = fallback_model or config.DEFAULT_IMAGE_MODEL
     output_dir = output_dir or config.OUTPUT_DIR
 
-    return _cloud_generate(prompt, fallback_model, output_dir, api_base=api_base, api_key=api_key)
+    return _cloud_generate(
+        prompt, fallback_model, output_dir,
+        api_base=api_base, image_api_base=image_api_base, api_key=api_key,
+    )
 
 
 def _cloud_generate(
@@ -107,6 +111,7 @@ def _cloud_generate(
     model: str,
     output_dir: str,
     api_base: Optional[str] = None,
+    image_api_base: Optional[str] = None,
     api_key: Optional[str] = None,
 ) -> str:
     """Generate portrait via an OpenAI-compatible image API.
@@ -119,8 +124,9 @@ def _cloud_generate(
             "未设置 API Key — 请在高级设置中填写或设置环境变量 LLM_API_KEY"
         )
 
-    api_base = api_base or config.DEFAULT_API_BASE
-    url = f"{api_base.rstrip('/')}/images/generations"
+    # Image API can use a different base than LLM API
+    image_base = image_api_base or api_base or config.DEFAULT_IMAGE_API_BASE
+    url = f"{image_base.rstrip('/')}/images/generations"
 
     if not prompt or len(prompt.strip()) < 10:
         raise RuntimeError(f"图像提示词太短或为空: '{prompt}'")
@@ -144,22 +150,22 @@ def _cloud_generate(
     except urllib.error.HTTPError as e:
         err_body = e.read().decode("utf-8", errors="replace") if e.fp else ""
         raise RuntimeError(
-            f"图片 API 返回 HTTP {e.code} → {err_body[:300]}"
+            f"图片 API HTTP {e.code} ← {url}\n响应: {err_body[:300]}"
         )
     except urllib.error.URLError as e:
         raise RuntimeError(
-            f"图片 API 网络不可达: {e.reason} (地址: {url})"
+            f"图片 API 网络不可达: {e.reason}\n请求地址: {url}"
         )
-    except json.JSONDecodeError as e:
+    except json.JSONDecodeError:
         raise RuntimeError(
-            f"图片 API 返回非JSON响应: {raw_body[:300]}"
+            f"图片 API 返回非 JSON 响应\n请求地址: {url}\n原始内容: {raw_body[:300]}"
         )
 
     image_url = result.get("images", [{}])[0].get("url")
     if not image_url:
         if "error" in result:
-            raise RuntimeError(f"图片 API 错误: {result['error']}")
-        raise RuntimeError(f"图片 API 未返回图片URL — 响应: {json.dumps(result)[:300]}")
+            raise RuntimeError(f"图片 API 错误: {result['error']}\n请求地址: {url}")
+        raise RuntimeError(f"图片 API 未返回图片 URL\n请求地址: {url}\n响应: {json.dumps(result)[:300]}")
 
     os.makedirs(output_dir, exist_ok=True)
     filename = f"portrait_{int(time.time())}.png"
@@ -167,6 +173,6 @@ def _cloud_generate(
     try:
         urllib.request.urlretrieve(image_url, output_path)
     except Exception as e:
-        raise RuntimeError(f"下载图片失败: {e} (URL: {image_url[:200]})")
+        raise RuntimeError(f"下载图片失败: {e}\n图片 URL: {image_url[:200]}")
 
     return output_path
