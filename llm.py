@@ -65,6 +65,7 @@ def generate_card(
     model: Optional[str] = None,
     api_base: Optional[str] = None,
     api_key: Optional[str] = None,
+    extra_instructions: Optional[str] = None,
 ) -> dict:
     """Generate a complete character card from a text description.
 
@@ -73,6 +74,7 @@ def generate_card(
         model: Model ID. Defaults to config.DEFAULT_LLM_MODEL.
         api_base: API base URL (OpenAI-compatible). Defaults to config.DEFAULT_API_BASE.
         api_key: API key. Defaults to config.DEFAULT_API_KEY.
+        extra_instructions: Optional extra requirements appended to the user prompt.
 
     Returns:
         Complete character card dict following SillyTavern v2 spec.
@@ -84,6 +86,8 @@ def generate_card(
     model = model or config.DEFAULT_LLM_MODEL
     api_base = api_base or config.DEFAULT_API_BASE
     user_prompt = f"Create a character card for: {description}"
+    if extra_instructions and extra_instructions.strip():
+        user_prompt += f"\n\nAdditional requirements: {extra_instructions.strip()}"
 
     try:
         return _call_api(user_prompt, model, SYSTEM_PROMPT, api_base, api_key)

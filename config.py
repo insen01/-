@@ -17,7 +17,7 @@ DEFAULT_WORKFLOW = "anime_char.json"
 COMFYUI_TIMEOUT = 300  # 5 min before fallback
 
 # ── Image generation (cloud fallback) ────────────────────
-DEFAULT_IMAGE_MODEL = "stabilityai/stable-diffusion-xl-base-1.0"
+DEFAULT_IMAGE_MODEL = "Qwen/Qwen-Image"
 
 # ── Output ───────────────────────────────────────────────
 OUTPUT_DIR = "/sdcard/Download/claude code/characters"
