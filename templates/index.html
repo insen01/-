@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Character Card Generator</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background: #0f0f13; color: #e0e0e0; min-height: 100vh;
+}
+.app { max-width: 900px; margin: 0 auto; padding: 16px; }
+.header { text-align: center; padding: 20px 0; }
+.header h1 { font-size: 1.5rem; color: #f0f0f0; }
+.header p { color: #888; font-size: 0.85rem; margin-top: 4px; }
+
+.layout { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 640px) { .layout { grid-template-columns: 1fr; } }
+
+.panel {
+  background: #1a1a22; border-radius: 12px; padding: 16px;
+  border: 1px solid #2a2a35;
+}
+.panel h2 { font-size: 1rem; margin-bottom: 12px; color: #c0c0d0; }
+
+label { display: block; font-size: 0.8rem; color: #888; margin-bottom: 4px; margin-top: 10px; }
+label:first-child { margin-top: 0; }
+
+textarea, input, select {
+  width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #333;
+  background: #111118; color: #eee; font-size: 0.9rem; font-family: inherit;
+}
+textarea { min-height: 160px; resize: vertical; }
+select { appearance: none; }
+
+.btn {
+  display: inline-block; padding: 10px 20px; border-radius: 8px; border: none;
+  font-size: 0.9rem; cursor: pointer; font-weight: 600; transition: opacity 0.2s;
+}
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-primary { background: #6366f1; color: #fff; width: 100%; margin-top: 12px; }
+.btn-download { background: #22c55e; color: #000; width: 100%; margin-top: 8px; }
+.btn-sm { padding: 6px 12px; font-size: 0.78rem; }
+
+.advanced-toggle {
+  font-size: 0.82rem; color: #888; cursor: pointer; margin-top: 12px;
+  user-select: none; display: inline-block;
+}
+.advanced-toggle:hover { color: #ccc; }
+.advanced { display: none; margin-top: 8px; }
+.advanced.open { display: block; }
+
+.progress-bar {
+  width: 100%; height: 4px; background: #2a2a35; border-radius: 2px; margin-top: 12px; overflow: hidden;
+}
+.progress-fill {
+  height: 100%; background: linear-gradient(90deg, #6366f1, #818cf8);
+  border-radius: 2px; transition: width 0.3s; width: 0%;
+}
+
+.stage-text { font-size: 0.82rem; color: #888; margin-top: 6px; text-align: center; }
+
+.preview-placeholder {
+  text-align: center; color: #555; padding: 40px 0;
+  font-size: 0.9rem;
+}
+#previewImage { width: 100%; border-radius: 8px; display: none; }
+.card-info { display: none; margin-top: 12px; }
+.card-info h3 { font-size: 1.1rem; color: #e0e0e0; }
+.card-info .tag { display: inline-block; background: #2a2a3a; padding: 2px 8px; border-radius: 12px; font-size: 0.75rem; margin: 2px; }
+.card-info .field { margin-top: 8px; }
+.card-info .field-label { font-size: 0.75rem; color: #777; text-transform: uppercase; }
+.card-info .field-value { font-size: 0.85rem; color: #ccc; margin-top: 2px; white-space: pre-wrap; }
+.char-book-preview { margin-top: 8px; }
+.char-book-preview summary { font-size: 0.82rem; color: #888; cursor: pointer; }
+
+.input-tabs { display: flex; gap: 4px; margin-bottom: 8px; }
+.input-tab {
+  padding: 6px 14px; border-radius: 6px 6px 0 0; font-size: 0.8rem;
+  background: #22222d; color: #888; cursor: pointer; border: 1px solid transparent;
+}
+.input-tab.active { background: #1a1a22; color: #e0e0e0; border-color: #333; border-bottom-color: #1a1a22; }
+#fileInput { display: none; }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="header">
+    <h1>Character Card Generator</h1>
+    <p>SillyTavern v2 · AI-Generated Character Cards + Portraits</p>
+  </div>
+
+  <div class="layout">
+    <!-- Left: Input -->
+    <div class="panel">
+      <h2>Input</h2>
+      <div class="input-tabs">
+        <span class="input-tab active" data-mode="paste">Direct Input</span>
+        <span class="input-tab" data-mode="file">Upload File</span>
+        <span class="input-tab" data-mode="guided">Guided Fill</span>
+      </div>
+      <div id="pasteInput">
+        <textarea id="description" placeholder="Enter character background and description...
+
+Example:
+Lin Shuang, a 23-year-old female swordswoman from a fallen martial arts family. Cold and aloof but with a soft heart, wields the Frostblade sword, wandering the land seeking the truth behind her family's destruction."></textarea>
+      </div>
+      <div id="fileInputArea" style="display:none;">
+        <input type="file" id="fileInput" accept=".txt,.md">
+        <label for="fileInput" class="btn btn-sm" style="display:inline-block;margin-top:8px;background:#333;color:#ccc;">Select File</label>
+        <span id="fileName" style="font-size:0.8rem;color:#888;margin-left:8px;"></span>
+      </div>
+      <div id="guidedInput" style="display:none;">
+        <label>Character Name</label><input type="text" id="gName" placeholder="Lin Shuang">
+        <label>Gender / Age</label><input type="text" id="gAge" placeholder="23-year-old female">
+        <label>Appearance</label><textarea id="gAppearance" rows="2" placeholder="Silver long hair, ice-blue eyes..."></textarea>
+        <label>Personality</label><textarea id="gPersonality" rows="2" placeholder="Cold and aloof, but soft-hearted..."></textarea>
+        <label>Background Story</label><textarea id="gBackground" rows="3" placeholder="Born into a fallen martial arts family..."></textarea>
+        <label>World Setting</label><textarea id="gWorld" rows="2" placeholder="Fictional ancient martial arts world..."></textarea>
+      </div>
+
+      <span class="advanced-toggle" onclick="toggleAdvanced()">⚙ Advanced Settings ▾</span>
+      <div class="advanced" id="advancedPanel">
+        <label>LLM Model</label>
+        <input type="text" id="llmModel" placeholder="deepseek-ai/DeepSeek-V3">
+        <label>ComfyUI URL</label>
+        <input type="text" id="comfyuiUrl" placeholder="http://127.0.0.1:8188">
+        <label>Workflow Name</label>
+        <select id="workflowSelect"></select>
+        <label>Fallback Image Model</label>
+        <input type="text" id="imageModel" placeholder="stabilityai/stable-diffusion-xl-base-1.0">
+        <div id="switchesPanel" style="margin-top:8px;"></div>
+      </div>
+
+      <button class="btn btn-primary" id="generateBtn" onclick="startGeneration()">✨ Generate Character Card</button>
+      <div class="progress-bar" id="progressBar" style="display:none;"><div class="progress-fill" id="progressFill"></div></div>
+      <div class="stage-text" id="stageText"></div>
+    </div>
+
+    <!-- Right: Preview -->
+    <div class="panel">
+      <h2>Preview</h2>
+      <div class="preview-placeholder" id="previewPlaceholder">Character card will preview here</div>
+      <img id="previewImage" alt="Character Portrait" style="width:100%;border-radius:8px;display:none;">
+      <div class="card-info" id="cardInfo">
+        <h3 id="cardName"></h3>
+        <div id="cardTags"></div>
+        <div class="field"><div class="field-label">Description</div><div class="field-value" id="cardDesc"></div></div>
+        <div class="field"><div class="field-label">Personality</div><div class="field-value" id="cardPersonality"></div></div>
+        <div class="field"><div class="field-label">Scenario</div><div class="field-value" id="cardScenario"></div></div>
+        <div class="field"><div class="field-label">First Message</div><div class="field-value" id="cardFirstMes"></div></div>
+        <details class="char-book-preview"><summary>World Book (0 entries)</summary><div id="charBookSummary"></div></details>
+      </div>
+      <button class="btn btn-download" id="downloadBtn" style="display:none;" onclick="downloadCard()">Download Character Card PNG</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let currentJobId = null;
+let pollTimer = null;
+
+// Input mode tabs
+document.querySelectorAll('.input-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.input-tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    const mode = tab.dataset.mode;
+    document.getElementById('pasteInput').style.display = mode === 'paste' ? '' : 'none';
+    document.getElementById('fileInputArea').style.display = mode === 'file' ? '' : 'none';
+    document.getElementById('guidedInput').style.display = mode === 'guided' ? '' : 'none';
+  });
+});
+
+// File input
+document.getElementById('fileInput').addEventListener('change', function() {
+  const file = this.files[0];
+  if (!file) return;
+  document.getElementById('fileName').textContent = file.name;
+  const reader = new FileReader();
+  reader.onload = () => { document.getElementById('description').value = reader.result; };
+  reader.readAsText(file);
+});
+
+// Load config on startup
+fetch('/api/config').then(r => r.json()).then(cfg => {
+  document.getElementById('llmModel').value = cfg.llm_model || '';
+  document.getElementById('comfyuiUrl').value = cfg.comfyui_url || '';
+  document.getElementById('imageModel').value = cfg.image_model || '';
+  loadWorkflows();
+});
+
+function toggleAdvanced() {
+  document.getElementById('advancedPanel').classList.toggle('open');
+}
+
+function loadWorkflows() {
+  fetch('/api/workflows').then(r => r.json()).then(data => {
+    const sel = document.getElementById('workflowSelect');
+    sel.innerHTML = '';
+    (data.workflows || []).forEach(wf => {
+      const opt = document.createElement('option');
+      opt.value = wf; opt.textContent = wf;
+      sel.appendChild(opt);
+    });
+  });
+}
+
+function getDescription() {
+  const activeTab = document.querySelector('.input-tab.active');
+  if (activeTab && activeTab.dataset.mode === 'guided') {
+    const parts = [];
+    const name = document.getElementById('gName').value.trim();
+    if (name) parts.push(`Character name: ${name}`);
+    const age = document.getElementById('gAge').value.trim();
+    if (age) parts.push(`Gender/Age: ${age}`);
+    const app = document.getElementById('gAppearance').value.trim();
+    if (app) parts.push(`Appearance: ${app}`);
+    const per = document.getElementById('gPersonality').value.trim();
+    if (per) parts.push(`Personality: ${per}`);
+    const bg = document.getElementById('gBackground').value.trim();
+    if (bg) parts.push(`Background: ${bg}`);
+    const world = document.getElementById('gWorld').value.trim();
+    if (world) parts.push(`World setting: ${world}`);
+    return parts.join('\n');
+  }
+  return document.getElementById('description').value.trim();
+}
+
+function startGeneration() {
+  const description = getDescription();
+  if (!description) { alert('Please enter a character description'); return; }
+
+  const btn = document.getElementById('generateBtn');
+  btn.disabled = true; btn.textContent = 'Submitting...';
+
+  const payload = {
+    description: description,
+    llm_model: document.getElementById('llmModel').value || null,
+    comfyui_url: document.getElementById('comfyuiUrl').value || null,
+    workflow: document.getElementById('workflowSelect').value || null,
+    image_model: document.getElementById('imageModel').value || null,
+    switches: {},
+    skip_comfyui: false
+  };
+
+  fetch('/api/generate', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(payload)
+  }).then(r => r.json()).then(data => {
+    if (data.error) { alert(data.error); btn.disabled = false; btn.textContent = '✨ Generate Character Card'; return; }
+    currentJobId = data.job_id;
+    btn.textContent = 'Generating...';
+    document.getElementById('progressBar').style.display = '';
+    pollJob();
+  }).catch(err => {
+    alert('Request failed: ' + err);
+    btn.disabled = false; btn.textContent = '✨ Generate Character Card';
+  });
+}
+
+function pollJob() {
+  if (!currentJobId) return;
+  fetch('/api/status/' + currentJobId).then(r => r.json()).then(job => {
+    document.getElementById('progressFill').style.width = job.progress + '%';
+    document.getElementById('stageText').textContent = job.message;
+
+    if (job.card_preview) updatePreview(job.card_preview);
+
+    if (job.stage === 'done') {
+      document.getElementById('generateBtn').disabled = false;
+      document.getElementById('generateBtn').textContent = '✨ Regenerate';
+      document.getElementById('downloadBtn').style.display = '';
+      document.getElementById('stageText').textContent = 'Done!';
+      clearTimeout(pollTimer);
+    } else if (job.stage === 'error') {
+      document.getElementById('generateBtn').disabled = false;
+      document.getElementById('generateBtn').textContent = '✨ Retry';
+      document.getElementById('stageText').textContent = 'Failed: ' + job.message;
+      clearTimeout(pollTimer);
+    } else {
+      pollTimer = setTimeout(pollJob, 1500);
+    }
+  });
+}
+
+function updatePreview(preview) {
+  document.getElementById('previewPlaceholder').style.display = 'none';
+  document.getElementById('cardInfo').style.display = '';
+  document.getElementById('cardName').textContent = preview.name || '(Unnamed)';
+  document.getElementById('cardTags').innerHTML = (preview.tags || []).map(t => `<span class="tag">${t}</span>`).join('');
+  document.getElementById('cardDesc').textContent = preview.description || '';
+  document.getElementById('cardPersonality').textContent = preview.personality || '';
+  document.getElementById('cardScenario').textContent = preview.scenario || '';
+  document.getElementById('cardFirstMes').textContent = preview.first_mes || '';
+  const summary = document.querySelector('.char-book-preview summary');
+  if (summary) summary.textContent = `World Book (${preview.world_book_entries || 0} entries)`;
+}
+
+function downloadCard() {
+  if (!currentJobId) return;
+  window.open('/api/download/' + currentJobId, '_blank');
+}
+</script>
+</body>
+</html>
