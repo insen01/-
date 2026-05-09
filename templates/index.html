@@ -3,16 +3,16 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>Character Card Generator</title>
+<title>角色卡生成器 · SillyTavern</title>
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
   background: #0f0f13; color: #e0e0e0; min-height: 100vh;
 }
 .app { max-width: 900px; margin: 0 auto; padding: 16px; }
 .header { text-align: center; padding: 20px 0; }
-.header h1 { font-size: 1.5rem; color: #f0f0f0; }
+.header h1 { font-size: 1.6rem; color: #f0f0f0; }
 .header p { color: #888; font-size: 0.85rem; margin-top: 4px; }
 
 .layout { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
@@ -87,72 +87,72 @@ select { appearance: none; }
 <body>
 <div class="app">
   <div class="header">
-    <h1>Character Card Generator</h1>
-    <p>SillyTavern v2 · AI-Generated Character Cards + Portraits</p>
+    <h1>🎴 角色卡生成器</h1>
+    <p>SillyTavern v2 · AI 角色设定 + 立绘 · 一键下载 PNG</p>
   </div>
 
   <div class="layout">
-    <!-- Left: Input -->
+    <!-- 输入面板 -->
     <div class="panel">
-      <h2>Input</h2>
+      <h2>📝 角色输入</h2>
       <div class="input-tabs">
-        <span class="input-tab active" data-mode="paste">Direct Input</span>
-        <span class="input-tab" data-mode="file">Upload File</span>
-        <span class="input-tab" data-mode="guided">Guided Fill</span>
+        <span class="input-tab active" data-mode="paste">直接输入</span>
+        <span class="input-tab" data-mode="file">上传文件</span>
+        <span class="input-tab" data-mode="guided">引导填写</span>
       </div>
       <div id="pasteInput">
-        <textarea id="description" placeholder="Enter character background and description...
+        <textarea id="description" placeholder="在此输入角色背景与设定...
 
-Example:
-Lin Shuang, a 23-year-old female swordswoman from a fallen martial arts family. Cold and aloof but with a soft heart, wields the Frostblade sword, wandering the land seeking the truth behind her family's destruction."></textarea>
+示例：
+林霜，23岁女性剑客，出身没落的武林世家。性格冷峻寡言但内心柔软，手持冰霜长剑，流浪江湖寻找家族灭门的真相。"></textarea>
       </div>
       <div id="fileInputArea" style="display:none;">
         <input type="file" id="fileInput" accept=".txt,.md">
-        <label for="fileInput" class="btn btn-sm" style="display:inline-block;margin-top:8px;background:#333;color:#ccc;">Select File</label>
+        <label for="fileInput" class="btn btn-sm" style="display:inline-block;margin-top:8px;background:#333;color:#ccc;">选择文件</label>
         <span id="fileName" style="font-size:0.8rem;color:#888;margin-left:8px;"></span>
       </div>
       <div id="guidedInput" style="display:none;">
-        <label>Character Name</label><input type="text" id="gName" placeholder="Lin Shuang">
-        <label>Gender / Age</label><input type="text" id="gAge" placeholder="23-year-old female">
-        <label>Appearance</label><textarea id="gAppearance" rows="2" placeholder="Silver long hair, ice-blue eyes..."></textarea>
-        <label>Personality</label><textarea id="gPersonality" rows="2" placeholder="Cold and aloof, but soft-hearted..."></textarea>
-        <label>Background Story</label><textarea id="gBackground" rows="3" placeholder="Born into a fallen martial arts family..."></textarea>
-        <label>World Setting</label><textarea id="gWorld" rows="2" placeholder="Fictional ancient martial arts world..."></textarea>
+        <label>角色名称</label><input type="text" id="gName" placeholder="例如：林霜">
+        <label>性别 / 年龄</label><input type="text" id="gAge" placeholder="例如：23岁女性">
+        <label>外貌特征</label><textarea id="gAppearance" rows="2" placeholder="银色长发、冰蓝色眼眸、身披青色斗篷..."></textarea>
+        <label>性格特点</label><textarea id="gPersonality" rows="2" placeholder="冷峻寡言但内心柔软，对弱者抱有同情..."></textarea>
+        <label>背景故事</label><textarea id="gBackground" rows="3" placeholder="出身没落武林世家，幼年目睹家族灭门，独自流浪江湖..."></textarea>
+        <label>世界观设定</label><textarea id="gWorld" rows="2" placeholder="架空古代武侠世界，江湖门派林立，朝廷暗流涌动..."></textarea>
       </div>
 
-      <span class="advanced-toggle" onclick="toggleAdvanced()">⚙ Advanced Settings ▾</span>
+      <span class="advanced-toggle" onclick="toggleAdvanced()">⚙ 高级设置 ▾</span>
       <div class="advanced" id="advancedPanel">
-        <label>LLM Model</label>
+        <label>LLM 模型</label>
         <input type="text" id="llmModel" placeholder="deepseek-ai/DeepSeek-V3">
-        <label>ComfyUI URL</label>
+        <label>ComfyUI 地址</label>
         <input type="text" id="comfyuiUrl" placeholder="http://127.0.0.1:8188">
-        <label>Workflow Name</label>
+        <label>工作流文件</label>
         <select id="workflowSelect"></select>
-        <label>Fallback Image Model</label>
+        <label>云端图片模型（兜底）</label>
         <input type="text" id="imageModel" placeholder="stabilityai/stable-diffusion-xl-base-1.0">
         <div id="switchesPanel" style="margin-top:8px;"></div>
       </div>
 
-      <button class="btn btn-primary" id="generateBtn" onclick="startGeneration()">✨ Generate Character Card</button>
+      <button class="btn btn-primary" id="generateBtn" onclick="startGeneration()">✨ 生成角色卡</button>
       <div class="progress-bar" id="progressBar" style="display:none;"><div class="progress-fill" id="progressFill"></div></div>
       <div class="stage-text" id="stageText"></div>
     </div>
 
-    <!-- Right: Preview -->
+    <!-- 预览面板 -->
     <div class="panel">
-      <h2>Preview</h2>
-      <div class="preview-placeholder" id="previewPlaceholder">Character card will preview here</div>
-      <img id="previewImage" alt="Character Portrait" style="width:100%;border-radius:8px;display:none;">
+      <h2>👁 预览</h2>
+      <div class="preview-placeholder" id="previewPlaceholder">角色卡将在此预览</div>
+      <img id="previewImage" alt="角色立绘" style="width:100%;border-radius:8px;display:none;">
       <div class="card-info" id="cardInfo">
         <h3 id="cardName"></h3>
         <div id="cardTags"></div>
-        <div class="field"><div class="field-label">Description</div><div class="field-value" id="cardDesc"></div></div>
-        <div class="field"><div class="field-label">Personality</div><div class="field-value" id="cardPersonality"></div></div>
-        <div class="field"><div class="field-label">Scenario</div><div class="field-value" id="cardScenario"></div></div>
-        <div class="field"><div class="field-label">First Message</div><div class="field-value" id="cardFirstMes"></div></div>
-        <details class="char-book-preview"><summary>World Book (0 entries)</summary><div id="charBookSummary"></div></details>
+        <div class="field"><div class="field-label">描述</div><div class="field-value" id="cardDesc"></div></div>
+        <div class="field"><div class="field-label">性格</div><div class="field-value" id="cardPersonality"></div></div>
+        <div class="field"><div class="field-label">场景</div><div class="field-value" id="cardScenario"></div></div>
+        <div class="field"><div class="field-label">开场白</div><div class="field-value" id="cardFirstMes"></div></div>
+        <details class="char-book-preview"><summary>世界书 (0 条)</summary><div id="charBookSummary"></div></details>
       </div>
-      <button class="btn btn-download" id="downloadBtn" style="display:none;" onclick="downloadCard()">Download Character Card PNG</button>
+      <button class="btn btn-download" id="downloadBtn" style="display:none;" onclick="downloadCard()">⬇ 下载角色卡 PNG</button>
     </div>
   </div>
 </div>
@@ -161,7 +161,7 @@ Lin Shuang, a 23-year-old female swordswoman from a fallen martial arts family. 
 let currentJobId = null;
 let pollTimer = null;
 
-// Input mode tabs
+// 输入模式切换
 document.querySelectorAll('.input-tab').forEach(tab => {
   tab.addEventListener('click', () => {
     document.querySelectorAll('.input-tab').forEach(t => t.classList.remove('active'));
@@ -173,7 +173,7 @@ document.querySelectorAll('.input-tab').forEach(tab => {
   });
 });
 
-// File input
+// 文件上传
 document.getElementById('fileInput').addEventListener('change', function() {
   const file = this.files[0];
   if (!file) return;
@@ -183,7 +183,7 @@ document.getElementById('fileInput').addEventListener('change', function() {
   reader.readAsText(file);
 });
 
-// Load config on startup
+// 加载默认配置
 fetch('/api/config').then(r => r.json()).then(cfg => {
   document.getElementById('llmModel').value = cfg.llm_model || '';
   document.getElementById('comfyuiUrl').value = cfg.comfyui_url || '';
@@ -212,17 +212,17 @@ function getDescription() {
   if (activeTab && activeTab.dataset.mode === 'guided') {
     const parts = [];
     const name = document.getElementById('gName').value.trim();
-    if (name) parts.push(`Character name: ${name}`);
+    if (name) parts.push(`角色名称: ${name}`);
     const age = document.getElementById('gAge').value.trim();
-    if (age) parts.push(`Gender/Age: ${age}`);
+    if (age) parts.push(`性别/年龄: ${age}`);
     const app = document.getElementById('gAppearance').value.trim();
-    if (app) parts.push(`Appearance: ${app}`);
+    if (app) parts.push(`外貌: ${app}`);
     const per = document.getElementById('gPersonality').value.trim();
-    if (per) parts.push(`Personality: ${per}`);
+    if (per) parts.push(`性格: ${per}`);
     const bg = document.getElementById('gBackground').value.trim();
-    if (bg) parts.push(`Background: ${bg}`);
+    if (bg) parts.push(`背景: ${bg}`);
     const world = document.getElementById('gWorld').value.trim();
-    if (world) parts.push(`World setting: ${world}`);
+    if (world) parts.push(`世界观: ${world}`);
     return parts.join('\n');
   }
   return document.getElementById('description').value.trim();
@@ -230,10 +230,10 @@ function getDescription() {
 
 function startGeneration() {
   const description = getDescription();
-  if (!description) { alert('Please enter a character description'); return; }
+  if (!description) { alert('请先输入角色描述'); return; }
 
   const btn = document.getElementById('generateBtn');
-  btn.disabled = true; btn.textContent = 'Submitting...';
+  btn.disabled = true; btn.textContent = '提交中...';
 
   const payload = {
     description: description,
@@ -249,14 +249,14 @@ function startGeneration() {
     method: 'POST', headers: {'Content-Type': 'application/json'},
     body: JSON.stringify(payload)
   }).then(r => r.json()).then(data => {
-    if (data.error) { alert(data.error); btn.disabled = false; btn.textContent = '✨ Generate Character Card'; return; }
+    if (data.error) { alert(data.error); btn.disabled = false; btn.textContent = '✨ 生成角色卡'; return; }
     currentJobId = data.job_id;
-    btn.textContent = 'Generating...';
+    btn.textContent = '生成中...';
     document.getElementById('progressBar').style.display = '';
     pollJob();
   }).catch(err => {
-    alert('Request failed: ' + err);
-    btn.disabled = false; btn.textContent = '✨ Generate Character Card';
+    alert('请求失败: ' + err);
+    btn.disabled = false; btn.textContent = '✨ 生成角色卡';
   });
 }
 
@@ -270,14 +270,14 @@ function pollJob() {
 
     if (job.stage === 'done') {
       document.getElementById('generateBtn').disabled = false;
-      document.getElementById('generateBtn').textContent = '✨ Regenerate';
+      document.getElementById('generateBtn').textContent = '✨ 重新生成';
       document.getElementById('downloadBtn').style.display = '';
-      document.getElementById('stageText').textContent = 'Done!';
+      document.getElementById('stageText').textContent = '生成完成！';
       clearTimeout(pollTimer);
     } else if (job.stage === 'error') {
       document.getElementById('generateBtn').disabled = false;
-      document.getElementById('generateBtn').textContent = '✨ Retry';
-      document.getElementById('stageText').textContent = 'Failed: ' + job.message;
+      document.getElementById('generateBtn').textContent = '✨ 重试';
+      document.getElementById('stageText').textContent = '生成失败: ' + job.message;
       clearTimeout(pollTimer);
     } else {
       pollTimer = setTimeout(pollJob, 1500);
@@ -288,14 +288,14 @@ function pollJob() {
 function updatePreview(preview) {
   document.getElementById('previewPlaceholder').style.display = 'none';
   document.getElementById('cardInfo').style.display = '';
-  document.getElementById('cardName').textContent = preview.name || '(Unnamed)';
+  document.getElementById('cardName').textContent = preview.name || '(未命名)';
   document.getElementById('cardTags').innerHTML = (preview.tags || []).map(t => `<span class="tag">${t}</span>`).join('');
   document.getElementById('cardDesc').textContent = preview.description || '';
   document.getElementById('cardPersonality').textContent = preview.personality || '';
   document.getElementById('cardScenario').textContent = preview.scenario || '';
   document.getElementById('cardFirstMes').textContent = preview.first_mes || '';
   const summary = document.querySelector('.char-book-preview summary');
-  if (summary) summary.textContent = `World Book (${preview.world_book_entries || 0} entries)`;
+  if (summary) summary.textContent = `世界书 (${preview.world_book_entries || 0} 条)`;
 }
 
 function downloadCard() {

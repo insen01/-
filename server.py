@@ -108,17 +108,17 @@ def api_workflows():
 def _run_generation(job_id, description, llm_model, comfyui_url, workflow, switches, skip_comfyui, image_model):
     try:
         # Stage 1: LLM text generation
-        _update_job(job_id, "llm", 10, "LLM is generating character settings...")
+        _update_job(job_id, "llm", 10, "LLM 正在生成角色设定...")
         card_dict = generate_card(description, llm_model)
 
         # Stage 2: Build card
-        _update_job(job_id, "building", 30, "Assembling character card JSON...")
+        _update_job(job_id, "building", 30, "正在组装角色卡 JSON...")
         card = build(card_dict)
         image_prompt = card.pop("_image_prompt", "")
         char_name = card["data"].get("name", "character")
 
         # Stage 3: Generate portrait
-        _update_job(job_id, "image", 50, "Generating character portrait...")
+        _update_job(job_id, "image", 50, "正在生成角色立绘...")
 
         try:
             portrait_path = _cloud_generate(image_prompt, image_model, config.OUTPUT_DIR)
@@ -128,10 +128,10 @@ def _run_generation(job_id, description, llm_model, comfyui_url, workflow, switc
             portrait_path = os.path.join(config.OUTPUT_DIR, f"placeholder_{job_id}.png")
             build_placeholder_card(portrait_path)
 
-        _update_job(job_id, "image", 80, "Portrait generation complete")
+        _update_job(job_id, "image", 80, "立绘生成完成")
 
         # Stage 4: Embed into PNG
-        _update_job(job_id, "embedding", 90, "Embedding character card data...")
+        _update_job(job_id, "embedding", 90, "正在嵌入角色卡数据到 PNG...")
         os.makedirs(config.OUTPUT_DIR, exist_ok=True)
         safe_name = "".join(c for c in char_name if c.isalnum() or c in "._- ")
         output_path = os.path.join(config.OUTPUT_DIR, f"{safe_name}.png")
@@ -142,11 +142,11 @@ def _run_generation(job_id, description, llm_model, comfyui_url, workflow, switc
         embed(card, portrait_path, output_path)
 
         # Stage 5: Done
-        _update_job(job_id, "done", 100, "Character card generated!",
+        _update_job(job_id, "done", 100, "角色卡生成完成！",
                      output_path=output_path, char_name=char_name, card=card)
 
     except Exception as e:
-        _update_job(job_id, "error", 0, f"Generation failed: {str(e)}")
+        _update_job(job_id, "error", 0, f"生成失败: {str(e)}")
 
 
 def _update_job(job_id, stage, progress, message, output_path=None, char_name=None, card=None):
